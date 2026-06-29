@@ -107,6 +107,7 @@ directories = [
     f"audio2{os.sep}audio",
     "audio",
     "outputs",
+    "temp",
 ]
 [
     os.makedirs(directory)

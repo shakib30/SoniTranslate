@@ -7,6 +7,8 @@ logger = logging.getLogger(__name__)
 def run_wav2lip(video_path, audio_path, output_path):
     logger.info("Starting Wav2Lip Lip-Sync processing...")
     wav2lip_dir = "Wav2Lip"
+    model_path = os.path.join(wav2lip_dir, "checkpoints")
+    os.makedirs("temp", exist_ok=True)
     
     # Check if Wav2Lip is installed, if not, download it
     if not os.path.exists(wav2lip_dir):
@@ -14,7 +16,6 @@ def run_wav2lip(video_path, audio_path, output_path):
         subprocess.run(["git", "clone", "https://github.com/Rudrabha/Wav2Lip.git"])
         
         # Download pre-trained model
-        model_path = os.path.join(wav2lip_dir, "checkpoints")
         os.makedirs(model_path, exist_ok=True)
         
         dest_path = os.path.join(model_path, "wav2lip_gan.pth")
