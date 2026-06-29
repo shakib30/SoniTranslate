@@ -72,13 +72,30 @@ def run_wav2lip(video_path, audio_path, output_path):
         logger.error("Wav2Lip model weights not found! Lip sync failed.")
         return video_path # Fallback to original video
     
+    # Determine resize factor automatically based on resolution to prevent OOM
+    resize_factor = "1"
+    try:
+        import cv2
+        cap = cv2.VideoCapture(video_path)
+        if cap.isOpened():
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            cap.release()
+            if max(width, height) > 2000:
+                resize_factor = "4"
+            elif max(width, height) > 1000:
+                resize_factor = "2"
+            logger.info(f"Video resolution: {width}x{height}. Auto-selected resize_factor: {resize_factor}")
+    except Exception as e:
+        logger.warning(f"Could not check video resolution for auto-resizing: {e}")
+
     command = [
         "python", os.path.join(wav2lip_dir, "inference.py"),
         "--checkpoint_path", os.path.join(wav2lip_dir, "checkpoints", "wav2lip_gan.pth"),
         "--face", video_path,
         "--audio", audio_path,
         "--outfile", output_path,
-        "--resize_factor", "1",
+        "--resize_factor", resize_factor,
         "--wav2lip_batch_size", "16",
         "--face_det_batch_size", "2"
     ]
