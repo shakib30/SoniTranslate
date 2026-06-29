@@ -1149,20 +1149,34 @@ class SoniTranslate(SoniTrCache):
         if not self.task_in_cache("output", [
             hash_base_video_file,
             hash_base_audio_wav,
-            burn_subtitles_to_video
-        ], {}):
+            burn_subtitles_to_video,
+            enable_lip_sync
+        ], {"video_output_file": video_output_file}):
             # Merge new audio + video
             remove_files(video_output_file)
             run_command(
                 f"ffmpeg -i {base_video_file} -i {mix_audio_file} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {video_output_file}"
             )
-        if enable_lip_sync:
-            try:
-                from soni_translate.lip_sync import run_wav2lip
-                lip_sync_output = "video_lip_sync.mp4"
-                video_output_file = run_wav2lip(video_output_file, mix_audio_file, lip_sync_output)
-            except Exception as e:
-                logger.error(f"Lip Sync Error: {str(e)}")
+            if enable_lip_sync:
+                try:
+                    from soni_translate.lip_sync import run_wav2lip
+                    lip_sync_output = "video_lip_sync.mp4"
+                    video_output_file = run_wav2lip(video_output_file, mix_audio_file, lip_sync_output)
+                except Exception as e:
+                    logger.error(f"Lip Sync Error: {str(e)}")
+        else:
+            video_output_file = self.video_output_file
+
+        # Manually save output cache because it's the last step
+        self.cache["output"] = [
+            hash_base_video_file,
+            hash_base_audio_wav,
+            burn_subtitles_to_video,
+            enable_lip_sync
+        ]
+        self.cache_data["output"] = {
+            "video_output_file": video_output_file
+        }
 
         output = media_out(
             media_file,

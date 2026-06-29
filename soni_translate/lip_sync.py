@@ -16,10 +16,48 @@ def run_wav2lip(video_path, audio_path, output_path):
         # Download pre-trained model
         model_path = os.path.join(wav2lip_dir, "checkpoints")
         os.makedirs(model_path, exist_ok=True)
-        # Using a reliable mirror for the model weights
-        subprocess.run(["wget", "-O", os.path.join(model_path, "wav2lip_gan.pth"), 
-                        "https://iiitaphyd-my.sharepoint.com/personal/radrabha_m_research_iiit_ac_in/_layouts/15/download.aspx?share=EdjI7bZlgApMqsIGmza6nGIBPb822T8lXq65R37M_N_M7A"])
         
+        dest_path = os.path.join(model_path, "wav2lip_gan.pth")
+        urls = [
+            "https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth",
+            "https://huggingface.co/rippertnt/wav2lip/resolve/main/wav2lip_gan.pth"
+        ]
+        
+        download_success = False
+        import urllib.request
+        for url in urls:
+            logger.info(f"Downloading Wav2Lip model weights from: {url}")
+            try:
+                # Set user-agent header to avoid potential blocks
+                req = urllib.request.Request(
+                    url, 
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                )
+                with urllib.request.urlopen(req) as response, open(dest_path, 'wb') as out_file:
+                    meta = response.info()
+                    file_size = int(meta.get("Content-Length", 0))
+                    logger.info(f"Downloading {file_size / (1024*1024):.2f} MB...")
+                    
+                    block_size = 8192
+                    downloaded = 0
+                    while True:
+                        buffer = response.read(block_size)
+                        if not buffer:
+                            break
+                        downloaded += len(buffer)
+                        out_file.write(buffer)
+                logger.info("Download completed successfully.")
+                download_success = True
+                break
+            except Exception as e:
+                logger.warning(f"Failed to download from {url}: {str(e)}")
+                if os.path.exists(dest_path):
+                    os.remove(dest_path)
+                    
+        if not download_success:
+            logger.error("All download links failed for Wav2Lip weights.")
+            return video_path
+
         # Install basic requirements
         logger.info("Installing Wav2Lip requirements...")
         subprocess.run(["pip", "install", "librosa==0.8.0", "face-alignment==1.3.5", "numpy==1.23.5"])
