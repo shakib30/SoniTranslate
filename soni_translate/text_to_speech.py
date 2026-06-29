@@ -619,6 +619,7 @@ def segments_coqui_tts(
         "hu",
         "ko",
         "ja",
+        "hi",
     ]
     if TRANSLATE_AUDIO_TO not in supported_lang_coqui:
         raise TTS_OperationError(
