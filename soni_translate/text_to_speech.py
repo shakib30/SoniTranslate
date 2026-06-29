@@ -889,7 +889,6 @@ def segments_openai_tts(
     filtered_openai_tts_segments, TRANSLATE_AUDIO_TO
 ):
     from openai import OpenAI
-
     client = OpenAI()
     sampling_rate = 24000
 

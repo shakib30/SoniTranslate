@@ -273,6 +273,7 @@ def gpt_sequential(segments, model, target, source=None):
     translated_segments = copy.deepcopy(segments)
 
     client = OpenAI()
+
     progress_bar = tqdm(total=len(segments), desc="Translating")
 
     lang_tg = re.sub(r'\([^)]*\)', '', INVERTED_LANGUAGES[target]).strip()

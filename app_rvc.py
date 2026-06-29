@@ -87,6 +87,7 @@ from soni_translate.text_multiformat_processor import (
     merge_video_and_audio,
 )
 from soni_translate.languages_gui import language_data, news
+import os
 import copy
 import logging
 import json
@@ -433,6 +434,8 @@ class SoniTranslate(SoniTrCache):
         enable_cache=True,
         custom_voices=False,
         custom_voices_workers=1,
+        auto_clone_voices=False,
+        enable_lip_sync=False,
         is_gui=False,
         progress=gr.Progress(),
     ):
@@ -525,6 +528,22 @@ class SoniTranslate(SoniTrCache):
                 " the translation language to avoid errors with the TTS."
             )
             warn_disp(wrn_lang, is_gui)
+
+        if auto_clone_voices:
+            tts_voice00 = "_XTTS_/AUTOMATIC.wav"
+            tts_voice01 = "_XTTS_/AUTOMATIC.wav"
+            tts_voice02 = "_XTTS_/AUTOMATIC.wav"
+            tts_voice03 = "_XTTS_/AUTOMATIC.wav"
+            tts_voice04 = "_XTTS_/AUTOMATIC.wav"
+            tts_voice05 = "_XTTS_/AUTOMATIC.wav"
+            tts_voice06 = "_XTTS_/AUTOMATIC.wav"
+            tts_voice07 = "_XTTS_/AUTOMATIC.wav"
+            tts_voice08 = "_XTTS_/AUTOMATIC.wav"
+            tts_voice09 = "_XTTS_/AUTOMATIC.wav"
+            tts_voice10 = "_XTTS_/AUTOMATIC.wav"
+            tts_voice11 = "_XTTS_/AUTOMATIC.wav"
+            voiceless_track = True
+            logger.info("Auto-Clone Voices enabled: Overriding TTS voices to XTTS AUTOMATIC and enabling voiceless_track.")
 
         if "_XTTS_" in tts_voice00 and voice_imitation:
             wrn_lang = (
@@ -1137,6 +1156,13 @@ class SoniTranslate(SoniTrCache):
             run_command(
                 f"ffmpeg -i {base_video_file} -i {mix_audio_file} -c:v copy -c:a copy -map 0:v -map 1:a -shortest {video_output_file}"
             )
+        if enable_lip_sync:
+            try:
+                from soni_translate.lip_sync import run_wav2lip
+                lip_sync_output = "video_lip_sync.mp4"
+                video_output_file = run_wav2lip(video_output_file, mix_audio_file, lip_sync_output)
+            except Exception as e:
+                logger.error(f"Lip Sync Error: {str(e)}")
 
         output = media_out(
             media_file,
@@ -1794,6 +1820,16 @@ def create_gui(theme, logs_in_gui=False):
                             main_voiceless_track = gr.Checkbox(
                                 label=lg_conf["voiceless_tk_label"],
                                 info=lg_conf["voiceless_tk_info"],
+                            )
+                            auto_clone_voices_gui = gr.Checkbox(
+                                False,
+                                label="Auto-Clone Voices (Zero-Shot)",
+                                info="Automatically clones the voice for all speakers (requires XTTS). Overrides manual speaker selection and removes original vocals."
+                            )
+                            enable_lip_sync_gui = gr.Checkbox(
+                                False,
+                                label="Enable Lip Sync (Wav2Lip)",
+                                info="Syncs the video lips with the translated audio (computationally expensive)."
                             )
 
                             gr.HTML("<hr></h2>")
@@ -2657,6 +2693,8 @@ def create_gui(theme, logs_in_gui=False):
                 enable_cache_gui,
                 enable_custom_voice,
                 workers_custom_voice,
+                auto_clone_voices_gui,
+                enable_lip_sync_gui,
                 is_gui_dummy_check,
             ],
             outputs=subs_edit_space,
@@ -2724,6 +2762,8 @@ def create_gui(theme, logs_in_gui=False):
                 enable_cache_gui,
                 enable_custom_voice,
                 workers_custom_voice,
+                auto_clone_voices_gui,
+                enable_lip_sync_gui,
                 is_gui_dummy_check,
             ],
             outputs=video_output,

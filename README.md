@@ -11,12 +11,12 @@ SonyTranslate is a powerful and user-friendly web application that allows you to
 
 | Description | Link |
 | ----------- | ---- |
-| 📙 Colab Notebook | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/R3gm/SoniTranslate/blob/main/SoniTranslate_Colab.ipynb) |
-| 🎉 Repository | [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-black?style=flat-square&logo=github)](https://github.com/R3gm/SoniTranslate/) |
+| 📙 Colab Notebook | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shakib30/SoniTranslate/blob/main/SoniTranslate_Colab.ipynb) |
+| 🎉 Repository | [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-black?style=flat-square&logo=github)](https://github.com/shakib30/SoniTranslate/) |
 | 🚀 Online DEMO | [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/r3gm/video_dubbing_sonitr_demo) |
 
 ## SonyTranslate's web UI, which features a browser interface built on the Gradio library.
-![image](https://github.com/R3gm/SoniTranslate/assets/114810545/0d71fbf4-e9f0-4f8f-944e-8f3f1ea6a019)
+![image](https://github.com/shakib30/SoniTranslate/assets/114810545/0d71fbf4-e9f0-4f8f-944e-8f3f1ea6a019)
 
 ## Using the project: A video guide
 
@@ -146,18 +146,18 @@ For a comprehensive understanding of the project, we highly recommend watching t
 
 ### Original audio
 
-https://github.com/R3gm/SoniTranslate/assets/114810545/db9e78c0-b228-4e81-9704-e62d5cc407a3
+https://github.com/shakib30/SoniTranslate/assets/114810545/db9e78c0-b228-4e81-9704-e62d5cc407a3
 
 
 
 ### Translated audio
 
-https://github.com/R3gm/SoniTranslate/assets/114810545/6a8ddc65-a46f-4653-9726-6df2615f0ef9
+https://github.com/shakib30/SoniTranslate/assets/114810545/6a8ddc65-a46f-4653-9726-6df2615f0ef9
 
 
 ## Colab Runtime
 
-To run SoniTranslate using Colab Runtime: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/R3gm/SoniTranslate/blob/main/SoniTranslate_Colab.ipynb)
+To run SoniTranslate using Colab Runtime: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shakib30/SoniTranslate/blob/main/SoniTranslate_Colab.ipynb)
 
 ## Install Locally (Installation tested in Linux)
 
@@ -189,7 +189,7 @@ conda install pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 pytorch-cuda=
 
 2. Clone this github repository and navigate to it:
 ```
-git clone https://github.com/r3gm/SoniTranslate.git
+git clone https://github.com/shakib30/SoniTranslate.git
 cd SoniTranslate
 ```
 
