@@ -1822,12 +1822,14 @@ def create_gui(theme, logs_in_gui=False):
                                 info=lg_conf["voiceless_tk_info"],
                             )
                             auto_clone_voices_gui = gr.Checkbox(
-                                False,
+                                value=False,
+                                visible=True,
                                 label="Auto-Clone Voices (Zero-Shot)",
                                 info="Automatically clones the voice for all speakers (requires XTTS). Overrides manual speaker selection and removes original vocals."
                             )
                             enable_lip_sync_gui = gr.Checkbox(
-                                False,
+                                value=False,
+                                visible=True,
                                 label="Enable Lip Sync (Wav2Lip)",
                                 info="Syncs the video lips with the translated audio (computationally expensive)."
                             )
@@ -2083,6 +2085,8 @@ def create_gui(theme, logs_in_gui=False):
                             max_speakers,
                             tts_voice00,
                             tts_voice01,
+                            auto_clone_voices_gui,
+                            enable_lip_sync_gui,
                         ],
                         outputs=[video_output],
                         cache_examples=False,
