@@ -58,9 +58,14 @@ def run_wav2lip(video_path, audio_path, output_path):
             logger.error("All download links failed for Wav2Lip weights.")
             return video_path
 
-        # Install basic requirements
-        logger.info("Installing Wav2Lip requirements...")
-        subprocess.run(["pip", "install", "librosa==0.8.0", "face-alignment==1.3.5", "numpy==1.23.5"])
+        # Install basic requirements if not present
+        try:
+            import face_alignment
+            import librosa
+            logger.info("Wav2Lip requirements already satisfied.")
+        except ImportError:
+            logger.info("Installing Wav2Lip requirements...")
+            subprocess.run(["pip", "install", "librosa==0.8.0", "face-alignment==1.3.5", "numpy==1.23.5"])
 
     # Ensure the model exists before running
     if not os.path.exists(os.path.join(wav2lip_dir, "checkpoints", "wav2lip_gan.pth")):

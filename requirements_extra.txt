@@ -17,3 +17,4 @@ tiktoken==0.6.0
 # Documents
 pypdf==4.2.0
 python-docx
+face-alignment==1.3.5
