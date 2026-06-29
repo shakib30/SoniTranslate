@@ -78,7 +78,9 @@ def run_wav2lip(video_path, audio_path, output_path):
         "--face", video_path,
         "--audio", audio_path,
         "--outfile", output_path,
-        "--resize_factor", "1"
+        "--resize_factor", "1",
+        "--wav2lip_batch_size", "16",
+        "--face_det_batch_size", "2"
     ]
     
     logger.info(f"Executing Wav2Lip: {' '.join(command)}")
