@@ -233,6 +233,102 @@ class Wav2LipProcessor:
 
         return "1"
 
+    def _get_video_duration(self, video_path: str) -> float:
+        """Get video duration in seconds using ffprobe."""
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe", "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    video_path
+                ],
+                capture_output=True, text=True, timeout=30
+            )
+            return float(result.stdout.strip())
+        except Exception as e:
+            logger.warning(f"Could not get video duration: {e}")
+            return 0.0
+
+    def _split_video_into_chunks(
+        self, video_path: str, audio_path: str, chunk_duration: int = 90
+    ) -> list:
+        """
+        Split video into chunks for GPU-safe processing.
+        Returns list of dicts: [{"video": path, "audio": path, "start": float}, ...]
+        """
+        duration = self._get_video_duration(video_path)
+        if duration <= 0:
+            logger.warning("Could not determine duration, processing as single chunk.")
+            return [{"video": video_path, "audio": audio_path, "start": 0.0}]
+
+        if duration <= chunk_duration:
+            logger.info(f"Video {duration:.1f}s <= {chunk_duration}s, processing as single chunk.")
+            return [{"video": video_path, "audio": audio_path, "start": 0.0}]
+
+        chunks = []
+        num_chunks = int(duration // chunk_duration) + 1
+        logger.info(f"Splitting {duration:.1f}s video into {num_chunks} chunks of ~{chunk_duration}s each.")
+
+        for i in range(num_chunks):
+            start_time = i * chunk_duration
+            if start_time >= duration:
+                break
+
+            chunk_video = os.path.join(self.temp_dir, f"chunk_{i:03d}.mp4")
+            chunk_audio = os.path.join(self.temp_dir, f"chunk_{i:03d}.wav")
+
+            # Split video chunk
+            cmd_video = (
+                f'ffmpeg -y -ss {start_time} -i "{video_path}" '
+                f'-t {chunk_duration} -c copy "{chunk_video}"'
+            )
+            # Split audio chunk
+            cmd_audio = (
+                f'ffmpeg -y -ss {start_time} -i "{audio_path}" '
+                f'-t {chunk_duration} -c copy "{chunk_audio}"'
+            )
+
+            try:
+                run_command(cmd_video)
+                run_command(cmd_audio)
+                if os.path.exists(chunk_video) and os.path.exists(chunk_audio):
+                    chunks.append({
+                        "video": chunk_video,
+                        "audio": chunk_audio,
+                        "start": start_time,
+                    })
+                    logger.info(f"Chunk {i}: {start_time:.1f}s - {min(start_time + chunk_duration, duration):.1f}s")
+                else:
+                    logger.warning(f"Chunk {i} files not created, skipping.")
+            except Exception as e:
+                logger.error(f"Failed to create chunk {i}: {e}")
+
+        return chunks if chunks else [{"video": video_path, "audio": audio_path, "start": 0.0}]
+
+    def _concat_chunks(self, chunk_outputs: list, output_path: str) -> str:
+        """Concatenate lip-synced chunks into final output."""
+        if len(chunk_outputs) == 1:
+            shutil.copy2(chunk_outputs[0], output_path)
+            return output_path
+
+        concat_file = os.path.join(self.temp_dir, "concat_list.txt")
+        with open(concat_file, "w") as f:
+            for chunk_path in chunk_outputs:
+                f.write(f"file '{os.path.abspath(chunk_path)}'\n")
+
+        cmd = (
+            f'ffmpeg -y -f concat -safe 0 -i "{concat_file}" '
+            f'-c:v libx264 -c:a aac -movflags +faststart "{output_path}"'
+        )
+        run_command(cmd)
+
+        if os.path.exists(output_path):
+            logger.info(f"Concatenated {len(chunk_outputs)} chunks into {output_path}")
+            return output_path
+        else:
+            raise RuntimeError("Failed to concatenate chunks into final output.")
+
     def _build_command(self, video_path: str, audio_path: str, output_path: str) -> list:
         """Build the Wav2Lip inference command with GPU/CPU flags."""
         resize_factor = self._get_resize_factor(video_path)
@@ -245,7 +341,8 @@ class Wav2LipProcessor:
             "--outfile", output_path,
             "--resize_factor", resize_factor,
             "--wav2lip_batch_size", "16",
-            "--face_det_batch_size", "2",
+            "--face_det_batch_size", "8",
+            "--pads", "0", "10", "0", "0",
         ]
 
         # Enable GPU acceleration if available and requested
@@ -262,6 +359,7 @@ class Wav2LipProcessor:
     def process(self, video_path: str, audio_path: str, output_path: Optional[str] = None) -> str:
         """
         Process a video with Wav2Lip to sync lips with the given audio.
+        Uses chunked processing for long videos to prevent GPU OOM.
 
         Args:
             video_path: Path to the input video file.
@@ -281,7 +379,7 @@ class Wav2LipProcessor:
         if not os.path.exists(audio_path):
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
-        # Setup Wجرا
+        # Setup
         self._install_wav2lip()
         self._download_model()
         self._install_requirements()
@@ -290,34 +388,88 @@ class Wav2LipProcessor:
         if not output_path:
             output_path = os.path.join(self.temp_dir, "lip_sync_output.mp4")
 
-        # Build and run
-        command = self._build_command(video_path, audio_path, output_path)
-        logger.info(f"Executing Wav2Lip: {' '.join(command)}")
+        # Split into chunks for GPU-safe processing (90s per chunk)
+        chunk_duration = 90
+        chunks = self._split_video_into_chunks(video_path, audio_path, chunk_duration)
 
-        try:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout_inference,
-                check=False  # We check manually for better error logs
-            )
+        if len(chunks) == 1:
+            # Single chunk - process directly
+            logger.info("Processing as single chunk...")
+            command = self._build_command(video_path, audio_path, output_path)
+            logger.info(f"Executing Wav2Lip: {' '.join(command)}")
 
-            if result.returncode != 0:
-                logger.error(f"Wav2Lip stderr: {result.stderr}")
-                raise subprocess.CalledProcessError(
-                    result.returncode, command, output=result.stdout, stderr=result.stderr
+            try:
+                result = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout_inference,
+                    check=False
                 )
 
-            if os.path.exists(output_path):
-                logger.info(f"Wav2Lip completed successfully: {output_path}")
-                return output_path
-            else:
-                raise RuntimeError("Wav2Lip finished but output file was not created.")
+                if result.returncode != 0:
+                    logger.error(f"Wav2Lip stderr: {result.stderr}")
+                    raise subprocess.CalledProcessError(
+                        result.returncode, command, output=result.stdout, stderr=result.stderr
+                    )
 
-        except subprocess.TimeoutExpired:
-            logger.error(f"Wav2Lip timed out after {self.timeout_inference} seconds.")
-            raise RuntimeError(f"Lip sync processing timed out. Try reducing video length or resolution.")
+                if os.path.exists(output_path):
+                    logger.info(f"Wav2Lip completed successfully: {output_path}")
+                    return output_path
+                else:
+                    raise RuntimeError("Wav2Lip finished but output file was not created.")
+
+            except subprocess.TimeoutExpired:
+                logger.error(f"Wav2Lip timed out after {self.timeout_inference} seconds.")
+                raise RuntimeError("Lip sync processing timed out.")
+        else:
+            # Multi-chunk processing
+            logger.info(f"Processing {len(chunks)} chunks to prevent GPU overload...")
+            chunk_outputs = []
+
+            for i, chunk in enumerate(chunks):
+                chunk_output = os.path.join(self.temp_dir, f"lip_sync_chunk_{i:03d}.mp4")
+                logger.info(f"Processing chunk {i+1}/{len(chunks)}: {chunk['start']:.1f}s")
+
+                command = self._build_command(chunk["video"], chunk["audio"], chunk_output)
+
+                try:
+                    result = subprocess.run(
+                        command,
+                        capture_output=True,
+                        text=True,
+                        timeout=self.timeout_inference,
+                        check=False
+                    )
+
+                    if result.returncode != 0:
+                        logger.error(f"Wav2Lip chunk {i} failed: {result.stderr}")
+                        continue
+
+                    if os.path.exists(chunk_output):
+                        chunk_outputs.append(chunk_output)
+                        logger.info(f"Chunk {i+1}/{len(chunks)} completed successfully.")
+                    else:
+                        logger.warning(f"Chunk {i+1} output not created, skipping.")
+
+                except subprocess.TimeoutExpired:
+                    logger.error(f"Wav2Lip chunk {i} timed out, skipping.")
+                    continue
+
+                # Free GPU memory between chunks
+                import gc
+                gc.collect()
+                try:
+                    import torch
+                    torch.cuda.empty_cache()
+                except ImportError:
+                    pass
+
+            if not chunk_outputs:
+                raise RuntimeError("All chunks failed. No output produced.")
+
+            # Concatenate all chunks
+            return self._concat_chunks(chunk_outputs, output_path)
 
     def cleanup(self) -> None:
         """Clean up the temporary directory and any residual files."""
