@@ -1162,9 +1162,15 @@ class SoniTranslate(SoniTrCache):
                 try:
                     from soni_translate.lip_sync import run_wav2lip
                     lip_sync_output = "video_lip_sync.mp4"
-                    video_output_file = run_wav2lip(video_output_file, mix_audio_file, lip_sync_output)
+                    # CRITICAL FIX: Use dub_audio_file (pure translated TTS) instead of mix_audio_file (mixed)
+                    # for proper lip-syncing to the translated speech only
+                    video_output_file = run_wav2lip(video_output_file, dub_audio_file, lip_sync_output)
+                    if not video_output_file or not os.path.exists(video_output_file):
+                        raise RuntimeError("Lip sync processing failed to produce output file.")
                 except Exception as e:
                     logger.error(f"Lip Sync Error: {str(e)}")
+                    if is_gui:
+                        gr.Warning(f"Lip sync failed: {str(e)}. Returning video without lip-sync. Please ensure CUDA is available and Wav2Lip requirements are met.")
         else:
             video_output_file = self.video_output_file
 
